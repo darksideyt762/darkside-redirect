@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DarkSide - YouTube Redirect</title>
+  <meta name="description" content="Dark-side YouTube redirects with analytics.">
+  <link rel="icon" href="favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a; --card: #111111;
+      --text: #e0e0e0; --light: #666;
+      --a1: #9d00ff;  --a2: #ff2d75;
+      --toast: rgba(0,0,0,0.9);
+      --r: 6px;       --shadow: 0 4px 16px rgba(0,0,0,0.8);
+      --t: 0.2s ease;
+      --glow: 0 0 10px rgba(157, 0, 255, 0.7);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'Roboto',sans-serif; min-height:100vh;
+    }
+    header {
+      background:linear-gradient(45deg, var(--a1), var(--a2));
+      padding:1.5rem; text-align:center; 
+      box-shadow:var(--shadow); position:relative;
+      border-bottom:1px solid rgba(255,255,255,0.1);
+    }
+    header::before {
+      content:''; position:absolute;
+      top:0; left:0; right:0; bottom:0;
+      background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="black" stroke-width="0.5" stroke-dasharray="5,5"/></svg>');
+      opacity:0.05; pointer-events:none;
+    }
+    header h1 { 
+      font-weight:500; font-size:2rem; 
+      font-family:'Orbitron', sans-serif; letter-spacing:1px;
+      text-shadow:0 0 8px rgba(157, 0, 255, 0.5);
+    }
+
+    .container {
+      max-width:960px; margin:2rem auto; padding:0 1rem;
+    }
+    .add-form {
+      display:flex; gap:.5rem; margin-bottom:2rem;
+    }
+    .add-form input {
+      flex:1; padding:.75rem 1rem;
+      border:none; border-radius:var(--r);
+      background:#222; color:var(--text);
+      font-size:1rem; border:1px solid #333;
+    }
+    .add-form input:focus {
+      outline:none; border-color:var(--a1);
+      box-shadow:var(--glow);
+    }
+    .add-form input::placeholder { color:var(--light); }
+    .add-form button {
+      padding:.75rem 1.5rem;
+      background:linear-gradient(45deg,var(--a1),var(--a2));
+      border:none; border-radius:var(--r);
+      font-weight:500; cursor:pointer;
+      transition:transform var(--t),opacity var(--t);
+      font-family:'Orbitron', sans-serif; letter-spacing:1px;
+      text-transform:uppercase; font-size:0.9rem;
+      box-shadow:var(--glow);
+    }
+    .add-form button:hover { 
+      opacity:.9; transform:translateY(-2px);
+    }
+
+    .card-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:1.5rem;
+    }
+    .card {
+      background:var(--card); border-radius:var(--r);
+      overflow:hidden; box-shadow:var(--shadow);
+      display:flex; flex-direction:column;
+      transition:transform var(--t);
+      border:1px solid #222;
+      position:relative;
+    }
+    .card::before {
+      content:''; position:absolute;
+      top:0; left:0; right:0; bottom:0;
+      border:1px solid rgba(255,255,255,0.05);
+      pointer-events:none; border-radius:var(--r);
+    }
+    .card:hover { 
+      transform:translateY(-4px); 
+      box-shadow:0 8px 24px rgba(0,0,0,0.8);
+    }
+    .card-thumb {
+      width:100%; padding-top:56.25%;
+      background-size:cover; background-position:center;
+      position:relative;
+    }
+    .card-thumb::after {
+      content:''; position:absolute;
+      top:0; left:0; right:0; bottom:0;
+      background:linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.5));
+    }
+    .card-body {
+      padding:1rem; flex:1;
+      display:flex; flex-direction:column;
+    }
+    .card-title {
+      font-size:1rem; font-weight:500;
+      line-height:1.2; margin-bottom:.5rem; flex:1;
+    }
+    .card-channel {
+      font-size:.875rem; color:var(--light);
+      margin-bottom:1rem;
+    }
+    .card-actions {
+      display:flex; gap:.5rem;
+    }
+    .card-actions button {
+      flex:1; padding:.5rem; border:none;
+      border-radius:var(--r);
+      font-size:.875rem; cursor:pointer;
+      transition:transform var(--t),opacity var(--t);
+      font-weight:500;
+    }
+    .card-actions button:active { transform:scale(.97); }
+    .btn-copy      { background:#222; color:var(--a2); border:1px solid #333; }
+    .btn-analytics { background:#222; color:var(--a1); border:1px solid #333; }
+    .btn-delete    { background:#222; color:#f44336; border:1px solid #333; }
+    .card-actions button:hover { opacity:.8; }
+
+    #toast {
+      position:fixed; bottom:2rem; left:50%;
+      transform:translateX(-50%);
+      background:var(--toast); color:#fff;
+      padding:.75rem 1.25rem; border-radius:999px;
+      opacity:0; pointer-events:none;
+      transition:opacity .3s ease; z-index:1000;
+      font-family:'Orbitron', sans-serif;
+      border:1px solid var(--a1);
+      box-shadow:var(--glow);
+    }
+    #toast.show { opacity:1; pointer-events:auto; }
+
+    .modal {
+      position:fixed; top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,0.8);
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; visibility:hidden;
+      transition:opacity .3s ease; z-index:1001;
+    }
+    .modal.show { opacity:1; visibility:visible; }
+    .modal-content {
+      background:var(--card); border-radius:var(--r);
+      padding:1.5rem; width:360px; box-shadow:var(--shadow);
+      position:relative; text-align:center;
+      border:1px solid #222;
+    }
+    .modal-content::before {
+      content:''; position:absolute;
+      top:0; left:0; right:0; bottom:0;
+      border:1px solid rgba(255,255,255,0.05);
+      pointer-events:none; border-radius:var(--r);
+    }
+    .modal-content h2 {
+      margin-top:0; margin-bottom:1rem;
+      font-size:1.25rem; font-weight:500;
+      font-family:'Orbitron', sans-serif;
+      color:var(--a1);
+    }
+    .modal-content .close-btn {
+      position:absolute; top:.75rem; right:.75rem;
+      background:none; border:none; font-size:1.25rem;
+      cursor:pointer; color:var(--light);
+    }
+    .stats-list, .confirm-list {
+      list-style:none; padding:0; margin:0 0 1rem; text-align:left;
+    }
+    .stats-list li, .confirm-list li {
+      margin:.5rem 0; font-size:.95rem;
+      display:flex; justify-content:space-between;
+      border-bottom:1px solid #222; padding-bottom:.5rem;
+    }
+    .stats-list li strong, .confirm-list li strong {
+      color:var(--a1);
+    }
+    .confirm-thumb {
+      width:100%; padding-top:56.25%;
+      background-size:cover; background-position:center;
+      border-radius:var(--r); margin-bottom:1rem;
+      position:relative;
+    }
+    .confirm-thumb::after {
+      content:''; position:absolute;
+      top:0; left:0; right:0; bottom:0;
+      background:linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.5));
+    }
+    .confirm-actions {
+      display:flex; gap:1rem; justify-content:center;
+    }
+    .confirm-actions button {
+      padding:.5rem 1rem; border:none;
+      border-radius:var(--r); cursor:pointer;
+      font-weight:500; font-size:.95rem;
+      transition:opacity var(--t);
+      font-family:'Orbitron', sans-serif;
+      letter-spacing:1px;
+    }
+    .btn-ok     { background:var(--a2); color:#000; }
+    .btn-cancel { background:#222; color:var(--text); border:1px solid #333; }
+    .confirm-actions button:hover { opacity:.9; }
+
+    @media(max-width:600px){
+      .add-form{flex-direction:column;}
+      .add-form button{width:100%;}
+    }
+  </style>
+</head>
+<body>
+
+  <header><h1>DARK<span style="color:var(--a2)">SIDE</span></h1></header>
+
+  <div class="container">
+    <form class="add-form" id="addForm" novalidate>
+      <input id="videoUrl" name="video_url" type="url" placeholder="Enter YouTube URL…" required>
+      <button type="submit">ADD VIDEO</button>
+    </form>
+
+    <div class="card-grid" id="cardGrid">
+          </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- Stats Modal -->
+  <div id="statsModal" class="modal" onclick="closeModal('statsModal')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="close-btn" onclick="closeModal('statsModal')">&times;</button>
+      <h2>LINK ANALYTICS</h2>
+      <ul class="stats-list">
+        <li><strong>VISITS:</strong> <span id="stat-visits">0</span></li>
+        <li><strong>MANUAL CLICKS:</strong> <span id="stat-manual">0</span></li>
+        <li><strong>AUTO REDIRECTS:</strong> <span id="stat-auto">0</span></li>
+        <li><strong>DISCLAIMER OPENS:</strong> <span id="stat-disclaimer">0</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div id="confirmModal" class="modal" onclick="closeModal('confirmModal')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="close-btn" onclick="closeModal('confirmModal')">&times;</button>
+      <h2>CONFIRM NEW LINK</h2>
+      <div class="confirm-thumb" id="confirmThumb"></div>
+      <ul class="confirm-list">
+        <li><strong>TITLE:</strong> <span id="confirmTitle"></span></li>
+        <li><strong>CHANNEL:</strong> <span id="confirmChannel"></span></li>
+      </ul>
+      <div class="confirm-actions">
+        <button class="btn-ok" id="btnConfirm">CONFIRM</button>
+        <button class="btn-cancel" onclick="closeModal('confirmModal')">CANCEL</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const analytics    = {"34b1640b4265d5ec":{"visits":3,"manual_clicks":1,"auto_redirects":2,"disclaimer_opens":3}};
+    const toast        = document.getElementById('toast');
+    const statsModal   = document.getElementById('statsModal');
+    const confirmModal = document.getElementById('confirmModal');
+    let pendingData    = null;
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(()=> toast.classList.remove('show'), 2000);
+    }
+
+    function copyLink(txt) {
+      navigator.clipboard.writeText(txt).then(()=> showToast('LINK COPIED!'));
+    }
+
+    function showStats(code) {
+      const s = analytics[code]||{};
+      document.getElementById('stat-visits').textContent     = s.visits         || 0;
+      document.getElementById('stat-manual').textContent     = s.manual_clicks  || 0;
+      document.getElementById('stat-auto').textContent       = s.auto_redirects || 0;
+      document.getElementById('stat-disclaimer').textContent = s.disclaimer_opens|| 0;
+      statsModal.classList.add('show');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('show');
+    }
+
+    document.getElementById('addForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const url = document.getElementById('videoUrl').value.trim();
+      if (!url) return showToast('ENTER A YOUTUBE URL');
+      const params = new URLSearchParams();
+      params.append('video_url', url);
+
+      fetch(`${location.pathname}?action=add`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: params.toString()
+      })
+      .then(res => {
+        if (!res.ok) throw new Error(`Server ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        if (!data.success) {
+          showToast(data.error||'ERROR ADDING VIDEO');
+          return;
+        }
+        pendingData = data;
+        document.getElementById('confirmThumb').style.backgroundImage =
+          `url('${data.thumbUrl}')`;
+        document.getElementById('confirmTitle').textContent   = data.title;
+        document.getElementById('confirmChannel').textContent = data.channelTitle;
+        confirmModal.classList.add('show');
+      })
+      .catch(err => {
+        console.error(err);
+        showToast(`ERROR: ${err.message}`);
+      });
+    });
+
+    document.getElementById('btnConfirm').addEventListener('click', ()=> {
+      const d = pendingData;
+      if (!d) return;
+      const grid = document.getElementById('cardGrid');
+      const card = document.createElement('div');
+      card.className = 'card'; card.dataset.code = d.code;
+      card.innerHTML = `
+        <div class="card-thumb" style="background-image:url('${d.thumbUrl}')"></div>
+        <div class="card-body">
+          <div class="card-title">${d.title}</div>
+          <div class="card-channel">${d.channelTitle}</div>
+          <div class="card-actions">
+            <button class="btn-copy" onclick="copyLink('${d.link}')">COPY</button>
+            <button class="btn-analytics" onclick="showStats('${d.code}')">STATS</button>
+            <button class="btn-delete" onclick="if(confirm('DELETE THIS LINK?'))location='?delete=${d.code}'">DELETE</button>
+          </div>
+        </div>`;
+      grid.prepend(card);
+      copyLink(d.link);
+      closeModal('confirmModal');
+      document.getElementById('videoUrl').value = '';
+    });
+  </script>
+
+</body>
+</html>
