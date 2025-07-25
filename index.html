@@ -177,42 +177,17 @@
       background:none; border:none; font-size:1.25rem;
       cursor:pointer; color:var(--light);
     }
-    .stats-list, .confirm-list {
+    .stats-list {
       list-style:none; padding:0; margin:0 0 1rem; text-align:left;
     }
-    .stats-list li, .confirm-list li {
+    .stats-list li {
       margin:.5rem 0; font-size:.95rem;
       display:flex; justify-content:space-between;
       border-bottom:1px solid #222; padding-bottom:.5rem;
     }
-    .stats-list li strong, .confirm-list li strong {
+    .stats-list li strong {
       color:var(--a1);
     }
-    .confirm-thumb {
-      width:100%; padding-top:56.25%;
-      background-size:cover; background-position:center;
-      border-radius:var(--r); margin-bottom:1rem;
-      position:relative;
-    }
-    .confirm-thumb::after {
-      content:''; position:absolute;
-      top:0; left:0; right:0; bottom:0;
-      background:linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.5));
-    }
-    .confirm-actions {
-      display:flex; gap:1rem; justify-content:center;
-    }
-    .confirm-actions button {
-      padding:.5rem 1rem; border:none;
-      border-radius:var(--r); cursor:pointer;
-      font-weight:500; font-size:.95rem;
-      transition:opacity var(--t);
-      font-family:'Orbitron', sans-serif;
-      letter-spacing:1px;
-    }
-    .btn-ok     { background:var(--a2); color:#000; }
-    .btn-cancel { background:#222; color:var(--text); border:1px solid #333; }
-    .confirm-actions button:hover { opacity:.9; }
 
     @media(max-width:600px){
       .add-form{flex-direction:column;}
@@ -226,12 +201,13 @@
 
   <div class="container">
     <form class="add-form" id="addForm" novalidate>
-      <input id="videoUrl" name="video_url" type="url" placeholder="Enter YouTube URL…" required>
+      <input id="videoUrl" name="video_url" type="url" placeholder="Enter YouTube URL (e.g., https://youtu.be/dQw4w9WgXcQ)…" required>
       <button type="submit">ADD VIDEO</button>
     </form>
 
     <div class="card-grid" id="cardGrid">
-          </div>
+      <!-- Videos will appear here -->
+    </div>
   </div>
 
   <div id="toast"></div>
@@ -250,46 +226,36 @@
     </div>
   </div>
 
-  <!-- Confirm Modal -->
-  <div id="confirmModal" class="modal" onclick="closeModal('confirmModal')">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <button class="close-btn" onclick="closeModal('confirmModal')">&times;</button>
-      <h2>CONFIRM NEW LINK</h2>
-      <div class="confirm-thumb" id="confirmThumb"></div>
-      <ul class="confirm-list">
-        <li><strong>TITLE:</strong> <span id="confirmTitle"></span></li>
-        <li><strong>CHANNEL:</strong> <span id="confirmChannel"></span></li>
-      </ul>
-      <div class="confirm-actions">
-        <button class="btn-ok" id="btnConfirm">CONFIRM</button>
-        <button class="btn-cancel" onclick="closeModal('confirmModal')">CANCEL</button>
-      </div>
-    </div>
-  </div>
-
   <script>
-    const analytics    = {"34b1640b4265d5ec":{"visits":3,"manual_clicks":1,"auto_redirects":2,"disclaimer_opens":3}};
-    const toast        = document.getElementById('toast');
-    const statsModal   = document.getElementById('statsModal');
-    const confirmModal = document.getElementById('confirmModal');
-    let pendingData    = null;
+    const toast = document.getElementById('toast');
+    const statsModal = document.getElementById('statsModal');
+    let analyticsData = {};
 
     function showToast(msg) {
       toast.textContent = msg;
       toast.classList.add('show');
-      setTimeout(()=> toast.classList.remove('show'), 2000);
+      setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    function copyLink(txt) {
-      navigator.clipboard.writeText(txt).then(()=> showToast('LINK COPIED!'));
+    function copyLink(url) {
+      navigator.clipboard.writeText(url)
+        .then(() => showToast('LINK COPIED!'))
+        .catch(err => showToast('COPY FAILED'));
     }
 
     function showStats(code) {
-      const s = analytics[code]||{};
-      document.getElementById('stat-visits').textContent     = s.visits         || 0;
-      document.getElementById('stat-manual').textContent     = s.manual_clicks  || 0;
-      document.getElementById('stat-auto').textContent       = s.auto_redirects || 0;
-      document.getElementById('stat-disclaimer').textContent = s.disclaimer_opens|| 0;
+      const stats = analyticsData[code] || {
+        visits: 0,
+        manual_clicks: 0,
+        auto_redirects: 0,
+        disclaimer_opens: 0
+      };
+      
+      document.getElementById('stat-visits').textContent = stats.visits;
+      document.getElementById('stat-manual').textContent = stats.manual_clicks;
+      document.getElementById('stat-auto').textContent = stats.auto_redirects;
+      document.getElementById('stat-disclaimer').textContent = stats.disclaimer_opens;
+      
       statsModal.classList.add('show');
     }
 
@@ -297,67 +263,68 @@
       document.getElementById(id).classList.remove('show');
     }
 
-    document.getElementById('addForm').addEventListener('submit', e => {
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const url = document.getElementById('videoUrl').value.trim();
-      if (!url) return showToast('ENTER A YOUTUBE URL');
-      const params = new URLSearchParams();
-      params.append('video_url', url);
+      
+      if (!url) {
+        showToast('ENTER A YOUTUBE URL');
+        return;
+      }
 
-      fetch(`${location.pathname}?action=add`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-        },
-        body: params.toString()
-      })
-      .then(res => {
-        if (!res.ok) throw new Error(`Server ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
+      try {
+        // Call Netlify Function
+        const response = await fetch('/.netlify/functions/process-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ video_url: url })
+        });
+
+        if (!response.ok) throw new Error('Server error');
+        
+        const data = await response.json();
+        
         if (!data.success) {
-          showToast(data.error||'ERROR ADDING VIDEO');
+          showToast(data.error || 'Failed to process video');
           return;
         }
-        pendingData = data;
-        document.getElementById('confirmThumb').style.backgroundImage =
-          `url('${data.thumbUrl}')`;
-        document.getElementById('confirmTitle').textContent   = data.title;
-        document.getElementById('confirmChannel').textContent = data.channelTitle;
-        confirmModal.classList.add('show');
-      })
-      .catch(err => {
-        console.error(err);
-        showToast(`ERROR: ${err.message}`);
-      });
-    });
 
-    document.getElementById('btnConfirm').addEventListener('click', ()=> {
-      const d = pendingData;
-      if (!d) return;
-      const grid = document.getElementById('cardGrid');
-      const card = document.createElement('div');
-      card.className = 'card'; card.dataset.code = d.code;
-      card.innerHTML = `
-        <div class="card-thumb" style="background-image:url('${d.thumbUrl}')"></div>
-        <div class="card-body">
-          <div class="card-title">${d.title}</div>
-          <div class="card-channel">${d.channelTitle}</div>
-          <div class="card-actions">
-            <button class="btn-copy" onclick="copyLink('${d.link}')">COPY</button>
-            <button class="btn-analytics" onclick="showStats('${d.code}')">STATS</button>
-            <button class="btn-delete" onclick="if(confirm('DELETE THIS LINK?'))location='?delete=${d.code}'">DELETE</button>
+        // Store analytics data
+        if (data.code) {
+          analyticsData[data.code] = {
+            visits: 0,
+            manual_clicks: 0,
+            auto_redirects: 0,
+            disclaimer_opens: 0
+          };
+        }
+
+        // Create and add the video card
+        const grid = document.getElementById('cardGrid');
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.code = data.code || '';
+        card.innerHTML = `
+          <div class="card-thumb" style="background-image:url('${data.thumbUrl}')"></div>
+          <div class="card-body">
+            <div class="card-title">${data.title}</div>
+            <div class="card-channel">${data.channelTitle}</div>
+            <div class="card-actions">
+              <button class="btn-copy" onclick="copyLink('${data.link}')">COPY</button>
+              <button class="btn-analytics" onclick="showStats('${data.code}')">STATS</button>
+              <button class="btn-delete" onclick="if(confirm('DELETE THIS LINK?')) this.closest('.card').remove()">DELETE</button>
+            </div>
           </div>
-        </div>`;
-      grid.prepend(card);
-      copyLink(d.link);
-      closeModal('confirmModal');
-      document.getElementById('videoUrl').value = '';
+        `;
+        grid.prepend(card);
+        showToast('VIDEO ADDED!');
+        document.getElementById('videoUrl').value = '';
+
+      } catch (err) {
+        console.error('Error:', err);
+        showToast('ERROR: Failed to add video');
+      }
     });
   </script>
-
 </body>
 </html>
