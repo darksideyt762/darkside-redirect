@@ -264,30 +264,23 @@
     }
 
     document.getElementById('addForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const url = document.getElementById('videoUrl').value.trim();
-      
-      if (!url) {
-        showToast('ENTER A YOUTUBE URL');
-        return;
-      }
+  e.preventDefault();
+  const url = document.getElementById('videoUrl').value.trim();
 
-      try {
-        // Call Netlify Function
-        const response = await fetch('/.netlify/functions/process-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ video_url: url })
-        });
+  const response = await fetch('/.netlify/functions/create-redirect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_url: url })
+  });
 
-        if (!response.ok) throw new Error('Server error');
-        
-        const data = await response.json();
-        
-        if (!data.success) {
-          showToast(data.error || 'Failed to process video');
-          return;
-        }
+  const data = await response.json();
+  
+  if (data.success) {
+    // Show the redirect link to user
+    copyLink(data.clean_url); 
+    showToast(`Redirect created: ${data.code}`);
+  }
+});
 
         // Store analytics data
         if (data.code) {
